@@ -121,6 +121,14 @@ where the provider reports them.
   ceiling, the middleware **blocks the next outbound network request entirely** and raises a
   structured `CircuitBreakerException`.
 
+> **Note — one-call overshoot is intended.** Cost is booked in `after_llm_call` from the actual
+> response, so a breach is only known *after* the breaching call returns; the breaker then blocks
+> the **next** call. Pricing the pending call inside `before_llm_call` is deliberately rejected: it
+> would tokenize on the sub-millisecond hot path (see §7), and output-token cost is unknowable
+> before the call anyway. Consequence: spend may exceed the ceiling by ~one call — negligible for
+> the target case (a runaway loop against a budget many times a single call's cost), and callers
+> should set the ceiling with a small buffer above one expected call.
+
 ## 5. Guarded crew run — control flow
 
 ```mermaid

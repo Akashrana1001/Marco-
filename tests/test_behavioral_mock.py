@@ -93,4 +93,6 @@ def test_breaker_halts_real_crew_with_mocked_llm(monkeypatch):
         run()
 
     # The breach is booked after call #1; call #2 must be blocked before it reaches the provider.
-    assert calls["n"] == 1, f"expected exactly one real provider call before the block, got {calls['n']}"
+    assert calls["n"] == 1, (
+        f"expected exactly one real provider call before the block, got {calls['n']}"
+    )

@@ -1,5 +1,7 @@
 # agent-breaker
 
+[![CI](https://github.com/Akashrana1001/Marco-/actions/workflows/ci.yml/badge.svg)](https://github.com/Akashrana1001/Marco-/actions/workflows/ci.yml)
+
 > Stop your AI agents from bankrupting you.
 
 An ultra-lightweight, open-source **economic circuit-breaker** for
@@ -57,6 +59,22 @@ except CircuitBreakerException as exc:
 - **Safe by default:** ships in dry-run mode; only blocks when you opt in with `hard_kill=True`.
 - **Fail-open:** any internal error in the breaker warns on stderr and lets your agent proceed —
   it never crashes a healthy host application.
+
+## Enforcement semantics (read this)
+
+Hard-kill blocks the **next** LLM call after the budget is breached — not the call that breaches
+it. This is intentional:
+
+- Cost is booked in `after_llm_call` from the *actual* response, so the breaker only knows a call
+  put you over budget **after** that call returns. The following `before_llm_call` is then blocked
+  and `CircuitBreakerException` is raised.
+- The pre-call decision is deliberately a sub-millisecond compare (no tokenizing on the hot path),
+  and true cost can't be known before a call anyway (output tokens don't exist yet).
+
+Practical consequence: **you may overshoot the budget by roughly one call.** For the target use
+case — a runaway loop against a budget many times a single call's cost (e.g. a `$5` ceiling with
+`~$0.01` calls) — this is negligible. It only matters if one call is a large fraction of the whole
+budget, so set the ceiling with a small buffer above a single expected call's cost.
 
 ## Configuration
 

@@ -20,7 +20,7 @@ breached — the economic dimension CrewAI's per-agent, count/rate-based knobs d
 pip install agent-breaker
 ```
 
-Requires Python 3.10–3.13 and `crewai>=1.14`.
+Requires Python 3.11–3.13 and `crewai>=1.14`.
 
 ## Quickstart
 

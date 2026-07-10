@@ -27,6 +27,8 @@ Phase 1 MVP — passive cost tracking + opt-in hard-kill for CrewAI.
 ### Project
 - uv + hatchling toolchain, `src/` layout, MIT license, typed (`py.typed`).
 - GitHub Actions CI (`.github/workflows/ci.yml`): lint + full test suite across Python
-  3.10–3.13 with CrewAI installed (so the compatibility smoke test runs for real), plus a
+  3.11–3.13 with CrewAI installed (so the compatibility smoke test runs for real), plus a
   build + `twine check` job.
 - Runnable dogfood example (`examples/quickstart.py`) for the ROADMAP validation gate.
+- Python floor set to **3.11** (CrewAI's transitive `onnxruntime` no longer ships cp310 wheels;
+  confirmed via CI — 3.11/3.12/3.13 pass, 3.10 fails at install).

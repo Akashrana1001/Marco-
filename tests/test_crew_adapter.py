@@ -9,7 +9,6 @@ from agent_breaker import crew_adapter
 from agent_breaker.exceptions import CircuitBreakerException
 from agent_breaker.state import bind_run, unbind_run
 
-
 # --- Fakes ---------------------------------------------------------------------------------
 
 

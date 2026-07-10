@@ -8,10 +8,10 @@ allowed, warned about, or blocked. Enforcement/side-effects live elsewhere (adap
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class Action(str, Enum):
+class Action(StrEnum):
     ALLOW = "ALLOW"
     WARN = "WARN"
     BLOCK = "BLOCK"

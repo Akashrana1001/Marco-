@@ -24,6 +24,10 @@ classifiers = [
 ]
 dependencies = [
     "crewai>=1.14,<2",
+    # LiteLLM powers the cost model (token_counter + cost_per_token). CrewAI >=1.14 made
+    # litellm an optional extra, so we depend on it directly — without it the breaker would
+    # silently track $0 and never enforce a budget.
+    "litellm>=1.0",
 ]
 
 [project.optional-dependencies]

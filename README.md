@@ -1,5 +1,7 @@
 # agent-breaker
 
+[![CI](https://github.com/Akashrana1001/Marco-/actions/workflows/ci.yml/badge.svg)](https://github.com/Akashrana1001/Marco-/actions/workflows/ci.yml)
+
 > Stop your AI agents from bankrupting you.
 
 An ultra-lightweight, open-source **economic circuit-breaker** for
@@ -52,6 +54,13 @@ except CircuitBreakerException as exc:
   can block it — so a hard-kill stops spend *before* the next call is dispatched. (CrewAI's
   `step_callback`/`task_callback` fire *after* a step and only report; they can't prevent the next
   call.)
+- **"Next call" semantics — bounded overshoot.** Cost is reconciled *after* each call (the only
+  point the real output-token cost is known), so the breaker trips on the **next**
+  `before_llm_call` after the ceiling is crossed. Total spend can therefore exceed the budget by at
+  most **one in-flight call's cost**. This is deliberate: pricing the pending call on the pre-call
+  path would break the sub-millisecond evaluation contract, and output cost isn't knowable until
+  the response exists. For the target scenario — a runaway loop of many small calls against a
+  budget worth many such calls — the one-call overshoot is negligible.
 - **Cost** is computed from real token usage via LiteLLM's maintained pricing data
   (`token_counter` + `cost_per_token`), so there is no hand-maintained price table to go stale.
 - **Safe by default:** ships in dry-run mode; only blocks when you opt in with `hard_kill=True`.

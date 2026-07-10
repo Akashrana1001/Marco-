@@ -121,6 +121,22 @@ where the provider reports them.
   ceiling, the middleware **blocks the next outbound network request entirely** and raises a
   structured `CircuitBreakerException`.
 
+**"Next call" semantics & bounded overshoot.** True cost is reconciled in `after_llm_call` (§4.3)
+— the only point the real output-token count exists — so the pre-call gate in `before_llm_call`
+compares *already-accumulated* spend against the ceiling. The breaker therefore trips on the
+**next** call after the ceiling is breached, and total spend can exceed the budget by at most the
+cost of the one in-flight call. This is an intentional tradeoff, not a gap:
+
+- Pricing the pending call inside `before_llm_call` would require tokenizing the full message list
+  on the blocking path, violating the sub-millisecond pre-call contract (§7).
+- Output tokens — usually the bulk of a call's cost — are unknowable until the response returns, so
+  a pre-call estimate could only ever price the input side (an imprecise number that still isn't a
+  true "block before breach").
+
+For the scenario this tool targets — a runaway loop of many small calls against a budget that is
+many multiples of a single call's cost — a one-call overshoot is negligible. Pre-call estimation
+is recorded as a possible Phase 2 refinement rather than a v0.1 change.
+
 ## 5. Guarded crew run — control flow
 
 ```mermaid

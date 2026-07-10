@@ -67,27 +67,41 @@ _HAS_KEY = any(
     reason="live test requires AGENT_BREAKER_LIVE=1, crewai installed, and a provider API key",
 )
 def test_live_hard_kill_trips_real_crew():  # pragma: no cover - only runs when explicitly gated
-    """A real crew with a near-zero budget must trip the breaker deterministically."""
+    """A real crew with a near-zero budget must trip the breaker deterministically.
+
+    Why *multiple* tiny tasks instead of one big one: ``before_llm_call`` evaluates
+    *cumulative* spend, which is ``0`` on the very first call — so the first call is always
+    ALLOWED and the breaker can only BLOCK from the second ``before_llm_call`` onward. A single
+    no-tool writing task often finishes in one LLM call, which would never give the breaker a
+    second call to block (the test would fail for the wrong reason). Several sequential
+    one-sentence tasks guarantee at least two gates fire: task 1's cost breaches the near-zero
+    budget, so the breaker blocks the first LLM call of task 2. Only ~one real completion is
+    ever paid for, and the trip is deterministic regardless of model verbosity.
+    """
     from crewai import Agent, Crew, Task
 
     model = os.environ.get("AGENT_BREAKER_LIVE_MODEL", "gpt-4o-mini")
 
     agent = Agent(
         role="Writer",
-        goal="Write a very long story",
-        backstory="You write endlessly.",
+        goal="Answer with a single short sentence.",
+        backstory="You reply in one brief sentence and stop.",
         llm=model,
-        max_iter=50,
+        max_iter=3,
     )
-    task = Task(
-        description="Write a 2000-word story about a robot. Keep expanding it.",
-        expected_output="A long story.",
-        agent=agent,
-    )
+    # Multiple sequential tasks => at least two before_llm_call gates fire.
+    tasks = [
+        Task(
+            description=f"Write one short sentence about a robot (variation {i}).",
+            expected_output="One short sentence.",
+            agent=agent,
+        )
+        for i in range(3)
+    ]
 
-    @crew_circuit_breaker(max_budget_dollars=0.0001, hard_kill=True)
+    @crew_circuit_breaker(max_budget_dollars=0.00001, hard_kill=True)
     def run():
-        return Crew(agents=[agent], tasks=[task]).kickoff()
+        return Crew(agents=[agent], tasks=tasks).kickoff()
 
     with pytest.raises(CircuitBreakerException):
         run()

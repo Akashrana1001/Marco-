@@ -21,19 +21,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
+      - name: Create venv on the matrix Python
+        run: uv venv --python ${{ matrix.python-version }}
 
       - name: Install project + dev deps (includes crewai)
-        # Installing crewai here makes the offline compatibility smoke test actually run:
-        # it asserts CrewAI still exposes before_llm_call / after_llm_call hook symbols.
-        run: uv pip install --system ".[dev]"
+        # Installs into the .venv created above. Pulling in crewai here makes the
+        # compatibility smoke test actually run: it asserts CrewAI still exposes the
+        # before_llm_call / after_llm_call hook symbols the adapter depends on.
+        run: uv pip install ".[dev]"
 
       - name: Lint
-        run: ruff check src tests
+        run: uv run ruff check src tests
 
       - name: Run tests (unit + CrewAI compatibility smoke test)
-        run: pytest -q
+        run: uv run pytest -q
 
   build:
     name: build + twine check
@@ -41,10 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv python install 3.12
       - name: Build sdist + wheel
         run: uv build
       - name: Validate distributions
-        run: |
-          uv pip install --system twine
-          twine check dist/*
+        run: uvx twine check dist/*

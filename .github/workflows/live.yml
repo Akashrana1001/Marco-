@@ -1,0 +1,58 @@
+name: Live hook-spike test
+
+# Manual-only. This is the behavioral proof of the ROADMAP hook spike: it runs a real CrewAI
+# crew with a near-zero budget and asserts the breaker actually trips (before_llm_call blocks
+# the next call and CircuitBreakerException propagates).
+#
+# It NEVER runs on push or pull_request — only when you explicitly dispatch it — so a provider
+# API key can never leak via untrusted PRs and no paid API call happens by accident.
+#
+# Prerequisite: set a provider API key as a repository secret (Settings > Secrets and variables
+# > Actions), e.g. OPENAI_API_KEY. Then run this workflow from the Actions tab.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "LiteLLM model id to drive the crew"
+        default: "gpt-4o-mini"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: live hard-kill trip (real crew)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Create venv
+        run: uv venv --python 3.12
+
+      - name: Install project + dev deps (includes crewai)
+        run: uv pip install ".[dev]"
+
+      - name: Require a provider API key
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ] && [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::No provider API key secret set. Add one (e.g. OPENAI_API_KEY) under repo Settings > Secrets and variables > Actions, then re-run."
+            exit 1
+          fi
+
+      - name: Run the live hard-kill test
+        env:
+          AGENT_BREAKER_LIVE: "1"
+          AGENT_BREAKER_LIVE_MODEL: ${{ inputs.model }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: uv run pytest tests/test_compat_smoke.py::test_live_hard_kill_trips_real_crew -v

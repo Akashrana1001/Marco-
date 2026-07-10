@@ -59,16 +59,27 @@ def test_breaker_halts_real_crew_with_mocked_llm(monkeypatch):
 
     monkeypatch.setattr(Completions, "create", _fake_create)
 
-    # Independent diagnostic counters registered alongside the breaker's hooks.
+    # Independent diagnostic counters + active-run visibility, registered alongside the breaker's.
+    from agent_breaker import state as ab_state
+
     before = {"n": 0}
     after = {"n": 0}
+    info = {"active_before": "unset", "active_after": "unset", "dollars": None, "msgs": None}
 
     def _cb(ctx):
         before["n"] += 1
+        s = ab_state.get_active_run()
+        info["active_before"] = None if s is None else s.crew_run_id
         return None
 
     def _ca(ctx):
         after["n"] += 1
+        s = ab_state.get_active_run()
+        info["active_after"] = None if s is None else s.crew_run_id
+        if s is not None:
+            info["dollars"] = s.dollars
+        msgs = getattr(ctx, "messages", None)
+        info["msgs"] = f"{type(msgs).__name__}/{len(msgs) if isinstance(msgs, list) else 'na'}"
         return None
 
     crewai_hooks.register_before_llm_call_hook(_cb)
@@ -106,6 +117,8 @@ def test_breaker_halts_real_crew_with_mocked_llm(monkeypatch):
 
     diag = (
         f"before_fired={before['n']} after_fired={after['n']} provider_calls={calls['n']} "
+        f"active_before={info['active_before']!r} active_after={info['active_after']!r} "
+        f"booked_dollars={info['dollars']!r} msgs={info['msgs']!r} "
         f"raised={type(raised).__name__ if raised else None}: {raised!r}"
     )
     assert isinstance(raised, CircuitBreakerException), f"breaker did not halt crew -> {diag}"

@@ -70,13 +70,20 @@ from crewai.hooks import register_before_llm_call_hook, register_after_llm_call_
 
 def _gate(ctx):                      # before_llm_call
     if running_dollars >= max_budget_dollars and hard_kill:
-        raise CircuitBreakerException(...)   # or return False to block silently in dry-run
-    return None                      # allow
+        mark_tripped()               # record breach for the decorator to surface
+        return False                 # CrewAI blocks the call ONLY on a False return
+    return None                      # allow (dry-run just warns and allows)
 
 def _reconcile(ctx):                 # after_llm_call
     accumulate_cost_from(ctx)        # real token usage -> dollars
     return None
 ```
+
+> **Why return `False` and not raise:** CrewAI's hook runner *catches and ignores* exceptions
+> raised by a hook — it blocks a call only when a before-hook **returns `False`**. Raising from the
+> hook would be swallowed and the call would proceed. So the breaker returns `False` to block, and
+> the `@crew_circuit_breaker` decorator raises `CircuitBreakerException` to the host after the run
+> (chaining the `ValueError` CrewAI raises for a blocked call). See §4.4.
 
 > **Adapter note:** wrap all hook registration behind a thin internal adapter (see §8) so a change
 > to CrewAI's hook signature is absorbed in one place rather than across the codebase.
@@ -118,8 +125,11 @@ where the provider reports them.
 - **Dry-run / audit mode (default, `hard_kill=False`)** — passively tracks token velocity and cost,
   emitting color-coded, scannable warnings to the terminal. Never interrupts a run.
 - **Deterministic hard-kill (`hard_kill=True`)** — when the running dollar balance breaches the
-  ceiling, the middleware **blocks the next outbound network request entirely** and raises a
-  structured `CircuitBreakerException`.
+  ceiling, the ``before_llm_call`` hook **returns `False` to block the offending outbound request**
+  (CrewAI's documented block mechanism) and marks the run *tripped*. The `@crew_circuit_breaker`
+  decorator then raises a structured `CircuitBreakerException` to the host once `kickoff()` unwinds
+  — whether it returned or raised the `ValueError` CrewAI emits for a blocked call (which is
+  chained via `raise ... from err`).
 
 > **Note — one-call overshoot is intended.** Cost is booked in `after_llm_call` from the actual
 > response, so a breach is only known *after* the breaching call returns; the breaker then blocks
@@ -128,6 +138,10 @@ where the provider reports them.
 > before the call anyway. Consequence: spend may exceed the ceiling by ~one call — negligible for
 > the target case (a runaway loop against a budget many times a single call's cost), and callers
 > should set the ceiling with a small buffer above one expected call.
+
+> **Note — block via `False`, surface via the decorator.** CrewAI ignores exceptions raised inside
+> a hook and blocks only on a `False` return, so the hook never raises; the decorator is what
+> raises `CircuitBreakerException`. This keeps enforcement aligned with CrewAI's real contract.
 
 ## 5. Guarded crew run — control flow
 

@@ -112,6 +112,33 @@ def test_hard_kill_trips_with_exception(monkeypatch):
     assert store["after"] == []
 
 
+def test_hard_kill_surfaces_trip_when_kickoff_raises(monkeypatch):
+    """CrewAI turns a blocked (False-returning) call into a ValueError; we must still surface
+    CircuitBreakerException to the host, chaining the underlying error."""
+    store = _install_fakes(monkeypatch)
+
+    def _kickoff_raises_on_block(n_calls):
+        for i in range(n_calls):
+            ctx = _FakeCtx(iterations=i)
+            for hb in list(store["before"]):
+                if hb(ctx) is False:
+                    raise ValueError("LLM call blocked by before_llm_call hook")
+            for ha in list(store["after"]):
+                ha(ctx)
+        return "done"
+
+    @crew_circuit_breaker(max_budget_dollars=0.25, hard_kill=True)
+    def pipeline():
+        return _kickoff_raises_on_block(10)
+
+    with pytest.raises(CircuitBreakerException) as ei:
+        pipeline()
+    assert ei.value.call_count == 3
+    assert isinstance(ei.value.__cause__, ValueError)  # underlying CrewAI error is chained
+    assert store["before"] == []
+    assert store["after"] == []
+
+
 def test_hooks_unregistered_when_wrapped_fn_raises(monkeypatch):
     store = _install_fakes(monkeypatch)
 

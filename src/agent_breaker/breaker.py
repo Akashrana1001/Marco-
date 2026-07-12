@@ -21,9 +21,21 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 from agent_breaker import crew_adapter
-from agent_breaker.state import bind_run, unbind_run
+from agent_breaker.exceptions import CircuitBreakerException
+from agent_breaker.state import RunState, bind_run, unbind_run
 
 F = TypeVar("F", bound=Callable[..., Any])
+
+
+def _trip_exception(state: RunState) -> CircuitBreakerException:
+    """Build a CircuitBreakerException from the run's trip snapshot (or live fields)."""
+    info = state.trip_info or {}
+    return CircuitBreakerException(
+        crew_run_id=str(info.get("crew_run_id", state.crew_run_id)),
+        spent_dollars=float(info.get("spent_dollars", state.dollars)),
+        budget_dollars=float(info.get("budget_dollars", state.budget_dollars or 0.0)),
+        call_count=int(info.get("call_count", state.call_count)),
+    )
 
 
 def crew_circuit_breaker(
@@ -37,12 +49,19 @@ def crew_circuit_breaker(
     Args:
         max_budget_dollars: Dollar ceiling for the decorated crew run. ``None`` disables
             enforcement (pure passive tracking).
-        hard_kill: If ``True``, block the next LLM call and raise ``CircuitBreakerException``
-            once the budget is breached. Defaults to ``False`` (passive dry-run / audit mode).
+        hard_kill: If ``True``, block the LLM call that would exceed the budget and raise
+            ``CircuitBreakerException`` once the budget is breached. Defaults to ``False``
+            (passive dry-run / audit mode).
         warn_thresholds: Fractions of the budget at which to emit escalating warnings.
 
     Returns:
         A decorator that returns a wrapper preserving the original function's metadata.
+
+    Enforcement: the ``before_llm_call`` hook *returns ``False``* to block the offending call
+    (CrewAI's documented block mechanism; a raising hook would be swallowed). When that happens
+    the run is marked ``tripped``; this wrapper then raises ``CircuitBreakerException`` to the
+    host whether ``kickoff()`` returned or raised (CrewAI turns a blocked call into a
+    ``ValueError``), chaining any underlying CrewAI error.
     """
 
     def decorator(func: F) -> F:
@@ -58,7 +77,17 @@ def crew_circuit_breaker(
             registered = crew_adapter.register()
             token = bind_run(state)
             try:
-                return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+            except Exception as err:
+                # CrewAI converts our False return into an error (e.g. ValueError "LLM call
+                # blocked by before_llm_call hook"). If we tripped, surface ours, chaining theirs.
+                if state.tripped:
+                    raise _trip_exception(state) from err
+                raise
+            else:
+                if state.tripped:
+                    raise _trip_exception(state)
+                return result
             finally:
                 unbind_run(token)
                 if registered:

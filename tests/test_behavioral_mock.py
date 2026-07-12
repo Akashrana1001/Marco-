@@ -1,16 +1,23 @@
 """Behavioral proof of the ROADMAP hook spike — FREE, no key, no network, no spend.
 
-Runs genuine CrewAI orchestration (so the real ``before_llm_call`` / ``after_llm_call`` dispatch
-executes) with the OpenAI SDK's ``Completions.create`` stubbed — the actual network seam CrewAI
-uses for this model — so there is no network call and no cost. Runs in the normal CI matrix.
+The compatibility smoke test proves CrewAI *exposes* the hook symbols. This test proves the
+breaker actually **halts a real crew**: it runs genuine CrewAI orchestration (so the real
+``before_llm_call`` / ``after_llm_call`` dispatch executes and our block must survive CrewAI's own
+hook machinery), while stubbing the OpenAI SDK's ``Completions.create`` — the actual network seam
+CrewAI uses for this model — so there is no network call and no cost. It runs in the normal CI
+matrix (CI installs CrewAI + the OpenAI SDK), unlike the live test which needs a paid API key.
 
-Trip logic (see src/agent_breaker/crew_adapter.py): ``after_llm_call`` books cost from content via
-LiteLLM pricing (real model name -> non-zero pricing); ``before_llm_call`` gates on *cumulative*
-spend (0 on the first call, so the first call is always allowed and the breaker blocks from the
-second gate). Two sequential tasks guarantee a second gate.
+How the trip is guaranteed (see src/agent_breaker/crew_adapter.py + breaker.py):
+- ``after_llm_call`` books cost from message/response *content* via LiteLLM pricing using the real
+  model name ("gpt-4o-mini" has non-zero pricing), so a stubbed response still books real dollars.
+- ``before_llm_call`` gates on *cumulative* spend, 0 on the first call, so the first call is
+  always allowed; the breaker blocks from the second gate onward. Two sequential tasks guarantee a
+  second gate.
+- On breach, ``before_llm_call`` *returns False* (CrewAI's documented block; a raising hook would
+  be swallowed) and marks the run tripped; the decorator then raises ``CircuitBreakerException``.
 
-This module currently also captures diagnostics (hook firings, provider calls, surfaced exception)
-so CI reveals the exact real-CrewAI behavior.
+Assertions: (a) the run raises ``CircuitBreakerException``, and (b) the LLM was invoked exactly
+ONCE — proving the second call was blocked before it reached the provider.
 """
 
 import importlib.util
@@ -29,7 +36,6 @@ _OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None
 )
 def test_breaker_halts_real_crew_with_mocked_llm(monkeypatch):
     from crewai import Agent, Crew, Task
-    from crewai import hooks as crewai_hooks
     from openai.resources.chat.completions import Completions
     from openai.types.chat import ChatCompletion
     from openai.types.chat.chat_completion import Choice
@@ -38,6 +44,9 @@ def test_breaker_halts_real_crew_with_mocked_llm(monkeypatch):
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-used")
 
+    # Stub the OpenAI SDK network call: keeps ALL of CrewAI's orchestration and hook dispatch
+    # intact (before/after_llm_call still fire) while guaranteeing no network/spend, and counts
+    # real provider calls directly.
     calls = {"n": 0}
 
     def _fake_create(self, *args, **kwargs):
@@ -59,40 +68,15 @@ def test_breaker_halts_real_crew_with_mocked_llm(monkeypatch):
 
     monkeypatch.setattr(Completions, "create", _fake_create)
 
-    # Independent diagnostic counters + active-run visibility, registered alongside the breaker's.
-    from agent_breaker import state as ab_state
-
-    before = {"n": 0}
-    after = {"n": 0}
-    info = {"active_before": "unset", "active_after": "unset", "dollars": None, "msgs": None}
-
-    def _cb(ctx):
-        before["n"] += 1
-        s = ab_state.get_active_run()
-        info["active_before"] = None if s is None else s.crew_run_id
-        return None
-
-    def _ca(ctx):
-        after["n"] += 1
-        s = ab_state.get_active_run()
-        info["active_after"] = None if s is None else s.crew_run_id
-        if s is not None:
-            info["dollars"] = s.dollars
-        msgs = getattr(ctx, "messages", None)
-        info["msgs"] = f"{type(msgs).__name__}/{len(msgs) if isinstance(msgs, list) else 'na'}"
-        return None
-
-    crewai_hooks.register_before_llm_call_hook(_cb)
-    crewai_hooks.register_after_llm_call_hook(_ca)
-
     agent = Agent(
         role="Writer",
         goal="Answer in one short sentence.",
         backstory="You reply in one brief sentence and stop.",
-        llm="gpt-4o-mini",
+        llm="gpt-4o-mini",  # real model name -> non-zero LiteLLM pricing
         max_iter=3,
         allow_delegation=False,
     )
+    # Two sequential tasks guarantee at least two before_llm_call gates fire.
     tasks = [
         Task(
             description=f"Write one short sentence about a robot (variation {i}).",
@@ -106,20 +90,10 @@ def test_breaker_halts_real_crew_with_mocked_llm(monkeypatch):
     def run():
         return Crew(agents=[agent], tasks=tasks, memory=False).kickoff()
 
-    raised: BaseException | None = None
-    try:
+    with pytest.raises(CircuitBreakerException):
         run()
-    except BaseException as exc:  # capture whatever surfaces, for diagnosis
-        raised = exc
-    finally:
-        crewai_hooks.unregister_before_llm_call_hook(_cb)
-        crewai_hooks.unregister_after_llm_call_hook(_ca)
 
-    diag = (
-        f"before_fired={before['n']} after_fired={after['n']} provider_calls={calls['n']} "
-        f"active_before={info['active_before']!r} active_after={info['active_after']!r} "
-        f"booked_dollars={info['dollars']!r} msgs={info['msgs']!r} "
-        f"raised={type(raised).__name__ if raised else None}: {raised!r}"
+    # The breach is booked after call #1; call #2 must be blocked before it reaches the provider.
+    assert calls["n"] == 1, (
+        f"expected exactly one real provider call before the block, got {calls['n']}"
     )
-    assert isinstance(raised, CircuitBreakerException), f"breaker did not halt crew -> {diag}"
-    assert calls["n"] == 1, f"expected exactly one real provider call -> {diag}"

@@ -21,7 +21,6 @@ from typing import Any
 
 from agent_breaker import pricing, reporting
 from agent_breaker.evaluator import Action, evaluate
-from agent_breaker.exceptions import CircuitBreakerException
 from agent_breaker.state import RunState, get_active_run
 
 
@@ -41,15 +40,21 @@ def _resolve_model(ctx: Any) -> str:
 
 
 def before_llm_call(ctx: Any) -> bool | None:
-    """Pre-call gate. Return ``False`` to block; ``None`` to allow.
+    """Pre-call gate. Return ``False`` to block the call; ``None`` to allow.
 
-    Evaluates cumulative spend against the run's budget. In dry-run it emits a warning and
-    allows; in hard-kill it raises ``CircuitBreakerException`` when the budget is breached.
+    CrewAI's hook runner blocks a call only when a before-hook *returns* ``False`` — it catches
+    and ignores exceptions raised by hooks. So on a hard-kill breach we mark the run ``tripped``
+    and return ``False`` (never raise); the decorator surfaces ``CircuitBreakerException`` to the
+    host after the run. In dry-run we warn and allow.
     """
     try:
         state = get_active_run()
         if state is None:
             return None  # no active breaker in this context; fail open
+
+        # Once tripped, block every subsequent (retried) call cheaply — no re-evaluation.
+        if state.tripped:
+            return False
 
         decision = evaluate(
             state.dollars,
@@ -59,13 +64,8 @@ def before_llm_call(ctx: Any) -> bool | None:
         )
 
         if decision.action is Action.BLOCK:
-            snap = state.snapshot()
-            raise CircuitBreakerException(
-                crew_run_id=state.crew_run_id,
-                spent_dollars=float(snap["dollars"]),
-                budget_dollars=float(state.budget_dollars or 0.0),
-                call_count=int(snap["call_count"]),
-            )
+            state.mark_tripped()
+            return False
 
         if decision.action is Action.WARN and decision.threshold_crossed is not None:
             if state.mark_warned(decision.threshold_crossed):
@@ -78,8 +78,6 @@ def before_llm_call(ctx: Any) -> bool | None:
                     hard_kill=state.hard_kill,
                 )
         return None
-    except CircuitBreakerException:
-        raise  # intentional; propagate to the host
     except Exception as exc:  # fail open on any internal error
         _warn(f"before_llm_call error: {exc!r}")
         return None

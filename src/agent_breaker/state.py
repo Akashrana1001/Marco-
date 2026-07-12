@@ -32,6 +32,8 @@ class RunState:
     budget_dollars: float | None = None
     hard_kill: bool = False
     warn_thresholds: tuple[float, ...] = (0.5, 0.8, 1.0)
+    tripped: bool = False
+    trip_info: dict[str, float | int | str] | None = None
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
     _warned: set[float] = field(default_factory=set, repr=False, compare=False)
 
@@ -45,6 +47,24 @@ class RunState:
                 return False
             self._warned.add(threshold)
             return True
+
+    def mark_tripped(self) -> None:
+        """Record that the budget was breached in hard-kill mode (idempotent).
+
+        Captures a snapshot (spent/budget/call count) so the decorator can raise a faithful
+        ``CircuitBreakerException`` after the run, regardless of what CrewAI does with the
+        blocked call.
+        """
+        with self._lock:
+            if self.tripped:
+                return
+            self.tripped = True
+            self.trip_info = {
+                "crew_run_id": self.crew_run_id,
+                "spent_dollars": self.dollars,
+                "budget_dollars": self.budget_dollars or 0.0,
+                "call_count": self.call_count,
+            }
 
     def record_call(
         self,

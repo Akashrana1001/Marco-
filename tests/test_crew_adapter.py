@@ -6,7 +6,6 @@ import types
 import pytest
 
 from agent_breaker import crew_adapter
-from agent_breaker.exceptions import CircuitBreakerException
 from agent_breaker.state import bind_run, unbind_run
 
 # --- Fakes ---------------------------------------------------------------------------------
@@ -102,12 +101,16 @@ def test_before_over_budget_dry_run_does_not_raise(bound_run):
     assert crew_adapter.before_llm_call(_FakeCtx()) is None
 
 
-def test_before_hard_kill_blocks_with_exception(bound_run):
-    bound_run(dollars=10.0, budget_dollars=10.0, hard_kill=True)
-    with pytest.raises(CircuitBreakerException) as ei:
-        crew_adapter.before_llm_call(_FakeCtx())
-    assert ei.value.budget_dollars == 10.0
-    assert ei.value.crew_run_id == "run-x"
+def test_before_hard_kill_returns_false_and_marks_tripped(bound_run):
+    state = bound_run(dollars=10.0, budget_dollars=10.0, hard_kill=True)
+    # CrewAI blocks only on a False return; the hook must not raise.
+    assert crew_adapter.before_llm_call(_FakeCtx()) is False
+    assert state.tripped is True
+    assert state.trip_info is not None
+    assert state.trip_info["budget_dollars"] == 10.0
+    assert state.trip_info["crew_run_id"] == "run-x"
+    # Once tripped, every subsequent call is blocked cheaply.
+    assert crew_adapter.before_llm_call(_FakeCtx()) is False
 
 
 def test_before_internal_error_fails_open(bound_run, monkeypatch, capsys):

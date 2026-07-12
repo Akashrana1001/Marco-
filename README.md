@@ -1,4 +1,4 @@
-# agent-breaker
+# crew-fusebox
 
 [![CI](https://github.com/Akashrana1001/Marco-/actions/workflows/ci.yml/badge.svg)](https://github.com/Akashrana1001/Marco-/actions/workflows/ci.yml)
 
@@ -12,14 +12,16 @@ deterministically stops a runaway loop before it produces an invoice-shock bill.
 ## Why not just `max_iter` / `max_rpm`?
 
 CrewAI already caps an agent's *iteration count* (`max_iter`) and *request rate* (`max_rpm`).
-agent-breaker does **not** duplicate those. It stops loops **by real-time dollar cost, aggregated
+crew-fusebox does **not** duplicate those. It stops loops **by real-time dollar cost, aggregated
 across every agent in a crew**, and blocks the next LLM call the moment a budget ceiling is
 breached — the economic dimension CrewAI's per-agent, count/rate-based knobs don't model.
+
+Most CrewAI cost guards hook into `step_callback`/`task_callback` — they can only react after a step finishes. `crew-fusebox` hooks into `before_llm_call` — it blocks the next request before it's sent, mid-step if needed.
 
 ## Install
 
 ```bash
-pip install agent-breaker
+pip install crew-fusebox
 ```
 
 Requires Python 3.11–3.13 and `crewai>=1.14`.
@@ -27,7 +29,7 @@ Requires Python 3.11–3.13 and `crewai>=1.14`.
 ## Quickstart
 
 ```python
-from agent_breaker import crew_circuit_breaker, CircuitBreakerException
+from crew_fusebox import crew_circuit_breaker, CircuitBreakerException
 from crewai import Crew
 
 # Dry-run / audit mode (default): passively tracks spend and prints color-coded warnings,

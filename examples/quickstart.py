@@ -1,11 +1,11 @@
-"""Runnable dogfood example for agent-breaker against a real CrewAI pipeline.
+"""Runnable dogfood example for crew-fusebox against a real CrewAI pipeline.
 
 This is the harness for the ROADMAP's validation gate: run it against real CrewAI loops
 (ideally 3 real users' pipelines) before starting Phase 2.
 
 Usage
 -----
-    pip install agent-breaker crewai
+    pip install crew-fusebox crewai
     export OPENAI_API_KEY=sk-...        # or another provider LiteLLM supports
 
     # Dry-run (default): tracks + warns, never interrupts.
@@ -24,7 +24,7 @@ import argparse
 import os
 import sys
 
-from agent_breaker import CircuitBreakerException, crew_circuit_breaker
+from crew_fusebox import CircuitBreakerException, crew_circuit_breaker
 
 
 def build_crew(model: str):
@@ -51,7 +51,7 @@ def build_crew(model: str):
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="agent-breaker CrewAI dogfood example")
+    parser = argparse.ArgumentParser(description="crew-fusebox CrewAI dogfood example")
     parser.add_argument("--budget", type=float, default=0.02, help="dollar budget for the run")
     parser.add_argument("--hard-kill", action="store_true", help="block + raise on breach")
     parser.add_argument("--model", default=os.environ.get("MODEL", "gpt-4o-mini"))

@@ -7,7 +7,7 @@ hook machinery), while stubbing the OpenAI SDK's ``Completions.create`` — the 
 CrewAI uses for this model — so there is no network call and no cost. It runs in the normal CI
 matrix (CI installs CrewAI + the OpenAI SDK), unlike the live test which needs a paid API key.
 
-How the trip is guaranteed (see src/agent_breaker/crew_adapter.py + breaker.py):
+How the trip is guaranteed (see src/crew_fusebox/crew_adapter.py + breaker.py):
 - ``after_llm_call`` books cost from message/response *content* via LiteLLM pricing using the real
   model name ("gpt-4o-mini" has non-zero pricing), so a stubbed response still books real dollars.
 - ``before_llm_call`` gates on *cumulative* spend, 0 on the first call, so the first call is
@@ -24,7 +24,7 @@ import importlib.util
 
 import pytest
 
-from agent_breaker import CircuitBreakerException, crew_circuit_breaker
+from crew_fusebox import CircuitBreakerException, crew_circuit_breaker
 
 _CREWAI_AVAILABLE = importlib.util.find_spec("crewai") is not None
 _OPENAI_AVAILABLE = importlib.util.find_spec("openai") is not None

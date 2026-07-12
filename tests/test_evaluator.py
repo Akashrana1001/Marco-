@@ -1,6 +1,6 @@
 """Task 5: pure evaluator decisions."""
 
-from agent_breaker.evaluator import Action, evaluate
+from crew_fusebox.evaluator import Action, evaluate
 
 
 def test_below_all_thresholds_allows():

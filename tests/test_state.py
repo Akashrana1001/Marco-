@@ -2,7 +2,7 @@
 
 import threading
 
-from agent_breaker.state import (
+from crew_fusebox.state import (
     RunState,
     bind_run,
     get_active_run,

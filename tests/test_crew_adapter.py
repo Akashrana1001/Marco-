@@ -5,8 +5,8 @@ import types
 
 import pytest
 
-from agent_breaker import crew_adapter
-from agent_breaker.state import bind_run, unbind_run
+from crew_fusebox import crew_adapter
+from crew_fusebox.state import bind_run, unbind_run
 
 # --- Fakes ---------------------------------------------------------------------------------
 
@@ -40,8 +40,24 @@ class _FakeLiteLLM(types.ModuleType):
             return len(text.split())
         return 0
 
-    def cost_per_token(self, model=None, prompt_tokens=0, completion_tokens=0):
-        return (prompt_tokens * 0.001, completion_tokens * 0.002)
+    def cost_per_token(
+        self,
+        model=None,
+        prompt_tokens=0,
+        completion_tokens=0,
+        cache_creation_input_tokens=0,
+        cache_read_input_tokens=0,
+    ):
+        uncached_prompt = max(
+            prompt_tokens - cache_creation_input_tokens - cache_read_input_tokens,
+            0,
+        )
+        prompt_cost = (
+            uncached_prompt * 0.001
+            + cache_read_input_tokens * 0.0005
+            + cache_creation_input_tokens * 0.00125
+        )
+        return (prompt_cost, completion_tokens * 0.002)
 
 
 @pytest.fixture
@@ -89,7 +105,7 @@ def test_before_warns_in_dry_run_and_dedups(bound_run, capsys):
     bound_run(dollars=5.0, budget_dollars=10.0, hard_kill=False)
     assert crew_adapter.before_llm_call(_FakeCtx()) is None
     first = capsys.readouterr().err
-    assert "BUDGET NOTICE" in first or "agent-breaker" in first
+    assert "BUDGET NOTICE" in first or "crew-fusebox" in first
     # Second call at the same threshold should not re-emit.
     assert crew_adapter.before_llm_call(_FakeCtx()) is None
     second = capsys.readouterr().err
@@ -215,3 +231,65 @@ def test_register_fails_open_when_crewai_missing(monkeypatch, capsys):
     monkeypatch.setitem(sys.modules, "crewai", None)
     assert crew_adapter.register() is False
     assert "failing open" in capsys.readouterr().err
+
+
+class _FakeUsageMetrics:
+    def __init__(
+        self,
+        prompt_tokens=0,
+        completion_tokens=0,
+        cached_prompt_tokens=0,
+        cache_creation_tokens=0,
+    ):
+        self.prompt_tokens = prompt_tokens
+        self.completion_tokens = completion_tokens
+        self.cached_prompt_tokens = cached_prompt_tokens
+        self.cache_creation_tokens = cache_creation_tokens
+
+
+def test_after_llm_call_with_summary_and_caching(bound_run, fake_litellm):
+    state = bound_run(budget_dollars=100.0)
+
+    # Setup the mock LLM with get_token_usage_summary
+    metrics_before = _FakeUsageMetrics(
+        prompt_tokens=100,
+        completion_tokens=50,
+        cached_prompt_tokens=10,
+        cache_creation_tokens=0,
+    )
+    metrics_after = _FakeUsageMetrics(
+        prompt_tokens=300,
+        completion_tokens=100,
+        cached_prompt_tokens=90,
+        cache_creation_tokens=50,
+    )
+
+    summary_calls = []
+
+    def get_summary():
+        if not summary_calls:
+            summary_calls.append(1)
+            return metrics_before
+        return metrics_after
+
+    ctx = _FakeCtx(response="hello world")
+    ctx.llm.get_token_usage_summary = get_summary
+
+    # Run before_llm_call to store metrics_before
+    assert crew_adapter.before_llm_call(ctx) is None
+
+    # Run after_llm_call to compute diff and price with cache
+    assert crew_adapter.after_llm_call(ctx) is None
+
+    # prompt_tokens = 300 - 100 = 200
+    # completion_tokens = 100 - 50 = 50
+    # cached_prompt_tokens = 90 - 10 = 80
+    # cache_creation_tokens = 50 - 0 = 50
+    # uncached = max(200 - 50 - 80, 0) = 70.
+    # Cost = 70 * 0.001 (0.07) + 80 * 0.0005 (0.04) + 50 * 0.00125 (0.0625) = 0.1725.
+    # Completion cost = 50 * 0.002 = 0.10.
+    # Total expected cost = 0.1725 + 0.10 = 0.2725.
+    assert state.prompt_tokens == 200
+    assert state.completion_tokens == 50
+    assert state.call_count == 1
+    assert state.dollars == pytest.approx(0.2725)

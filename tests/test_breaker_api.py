@@ -1,12 +1,12 @@
 """Task 2: CircuitBreakerException fields + pass-through decorator."""
 
-import agent_breaker
-from agent_breaker import CircuitBreakerException, crew_circuit_breaker
+import crew_fusebox
+from crew_fusebox import CircuitBreakerException, crew_circuit_breaker
 
 
 def test_public_api_exports():
-    assert hasattr(agent_breaker, "crew_circuit_breaker")
-    assert hasattr(agent_breaker, "CircuitBreakerException")
+    assert hasattr(crew_fusebox, "crew_circuit_breaker")
+    assert hasattr(crew_fusebox, "CircuitBreakerException")
 
 
 def test_exception_stores_fields():

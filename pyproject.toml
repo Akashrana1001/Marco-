@@ -3,13 +3,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agent-breaker"
+name = "crew-fusebox"
 version = "0.1.0"
 description = "An economic circuit-breaker for CrewAI multi-agent systems. Stop your AI agents from bankrupting you."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 license = { text = "MIT" }
-authors = [{ name = "agent-breaker contributors" }]
+authors = [{ name = "crew-fusebox contributors" }]
 keywords = ["crewai", "llm", "cost", "budget", "circuit-breaker", "agents", "litellm"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -37,15 +37,15 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/agent-breaker/agent-breaker"
-Documentation = "https://github.com/agent-breaker/agent-breaker#readme"
-Issues = "https://github.com/agent-breaker/agent-breaker/issues"
+Homepage = "https://github.com/Akashrana1001/crew-fusebox"
+Documentation = "https://github.com/Akashrana1001/crew-fusebox#readme"
+Issues = "https://github.com/Akashrana1001/crew-fusebox/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agent_breaker"]
+packages = ["src/crew_fusebox"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/agent_breaker", "README.md", "LICENSE", "CHANGELOG.md"]
+include = ["src/crew_fusebox", "README.md", "LICENSE", "CHANGELOG.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

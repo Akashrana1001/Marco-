@@ -1,4 +1,4 @@
-# CONVENTIONS — agent-breaker
+# CONVENTIONS — crew-fusebox
 
 > Index: [`CONTEXT.md`](./CONTEXT.md) · Source of truth: [`claude.md`](./claude.md)
 > Related: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
@@ -58,7 +58,7 @@ constraints derived from the blueprint, not suggestions.
 
 ## 6. Packaging & license
 
-- Distribute on **PyPI** as `agent-breaker`.
+- Distribute on **PyPI** as `crew-fusebox`.
 - **License: MIT.** Decided up front for the open-core model — a permissive core maximizes adoption
   and embedding, with paid/hosted features layered on top. Ship the MIT header from the first
   commit; do not leave the license undecided.

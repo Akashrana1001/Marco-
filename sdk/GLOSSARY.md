@@ -1,4 +1,4 @@
-# GLOSSARY — agent-breaker
+# GLOSSARY — crew-fusebox
 
 > Index: [`CONTEXT.md`](./CONTEXT.md) · Source of truth: [`claude.md`](./claude.md)
 
@@ -8,7 +8,7 @@ Definitions of the domain-specific terms used across the project docs.
   and, once a threshold is breached, interrupts execution to prevent further spend.
 
 - **Economic fuse box** — The product's positioning metaphor. Like an electrical fuse box trips to
-  prevent damage, agent-breaker "trips" to prevent runaway spend. It is a financial utility, not a
+  prevent damage, crew-fusebox "trips" to prevent runaway spend. It is a financial utility, not a
   security firewall.
 
 - **Dry-run / audit mode** — The **default** operating mode (`hard_kill=False`). The SDK passively
@@ -37,7 +37,7 @@ Definitions of the domain-specific terms used across the project docs.
 
 - **LiteLLM pricing data** — LiteLLM's community-maintained `model_prices_and_context_window.json`
   (and the `cost_per_token`/`completion_cost` helpers) that map model + token counts to dollar
-  cost across thousands of models. agent-breaker sources pricing from here so the "prices go stale"
+  cost across thousands of models. crew-fusebox sources pricing from here so the "prices go stale"
   maintenance burden stays upstream. LiteLLM is already transitive via CrewAI, so it adds no
   meaningful dependency weight.
 
@@ -57,12 +57,12 @@ Definitions of the domain-specific terms used across the project docs.
   `step_callback`/`task_callback` are **not** usable for enforcement.
 
 - **`before_llm_call` hook** — CrewAI's pre-call hook (CrewAI ≥ 1.14). Runs *before every LLM call*
-  and **blocks that call when it returns `False`**. This is where agent-breaker's pre-call
+  and **blocks that call when it returns `False`**. This is where crew-fusebox's pre-call
   evaluation and deterministic hard-kill bind. Receives an `LLMCallHookContext`
   (`messages`, `agent`, `task`, `crew`, `llm`, `iterations`). Registered via
   `register_before_llm_call_hook`, `@before_llm_call`, or crew-scoped `@before_llm_call_crew`.
 
-- **`after_llm_call` hook** — CrewAI's post-call hook. Runs after the call returns; agent-breaker
+- **`after_llm_call` hook** — CrewAI's post-call hook. Runs after the call returns; crew-fusebox
   uses it to reconcile true cost from the actual token usage on the response.
 
 - **`step_callback` / `task_callback` (not for enforcement)** — CrewAI callbacks that fire *after* a
@@ -72,9 +72,9 @@ Definitions of the domain-specific terms used across the project docs.
 
 - **Native max_iter / max_rpm (CrewAI)** — CrewAI's built-in per-agent controls: `max_iter` caps an
   agent's iteration count (default ~20–25) and `max_rpm` caps its request rate. They are per-agent
-  and count/rate-based. agent-breaker does **not** duplicate them.
+  and count/rate-based. crew-fusebox does **not** duplicate them.
 
-- **Differentiator** — What agent-breaker adds beyond `max_iter`/`max_rpm`: stopping runaway loops
+- **Differentiator** — What crew-fusebox adds beyond `max_iter`/`max_rpm`: stopping runaway loops
   **by real-time dollar cost, aggregated across all agents in a crew, with a hard budget ceiling**
   that blocks the next LLM call. The economic dimension CrewAI's native knobs do not model.
 

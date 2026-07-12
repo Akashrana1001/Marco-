@@ -10,8 +10,8 @@ import types
 
 import pytest
 
-from agent_breaker import crew_adapter, crew_circuit_breaker
-from agent_breaker.exceptions import CircuitBreakerException
+from crew_fusebox import crew_adapter, crew_circuit_breaker
+from crew_fusebox.exceptions import CircuitBreakerException
 
 
 class _FakeLLM:
@@ -39,7 +39,7 @@ class _FakeLiteLLM(types.ModuleType):
             return len(text.split())  # 5 completion tokens / call
         return 0
 
-    def cost_per_token(self, model=None, prompt_tokens=0, completion_tokens=0):
+    def cost_per_token(self, model=None, prompt_tokens=0, completion_tokens=0, **kwargs):
         # 100*0.001 + 5*0.002 = 0.11 dollars per call
         return (prompt_tokens * 0.001, completion_tokens * 0.002)
 
@@ -88,7 +88,7 @@ def test_dry_run_completes_and_warns(monkeypatch, capsys):
 
     assert pipeline() == "done"  # dry-run never interrupts
     err = capsys.readouterr().err
-    assert "agent-breaker" in err  # warnings were emitted
+    assert "crew-fusebox" in err  # warnings were emitted
     # hooks cleaned up
     assert store["before"] == []
     assert store["after"] == []

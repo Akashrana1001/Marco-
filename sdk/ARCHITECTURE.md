@@ -1,11 +1,11 @@
-# ARCHITECTURE — agent-breaker
+# ARCHITECTURE — crew-fusebox
 
 > Index: [`CONTEXT.md`](./CONTEXT.md) · Source of truth: [`claude.md`](./claude.md)
 > Related: [`PRD.md`](./PRD.md) · [`ROADMAP.md`](./ROADMAP.md) · [`GLOSSARY.md`](./GLOSSARY.md) · [`CONVENTIONS.md`](./CONVENTIONS.md)
 
 ## 1. Design philosophy
 
-agent-breaker is a **pip-installable Python package** that implements a **local, in-memory
+crew-fusebox is a **pip-installable Python package** that implements a **local, in-memory
 execution guard**. It runs *inside* the client application runtime to track, evaluate, and — when
 authorized — forcefully terminate runaway workflows. It is a financial utility, not a security
 firewall.
@@ -194,7 +194,7 @@ breaker from silently breaking on a CrewAI upgrade:
 
 ## 9. Packaging & license
 
-- Distributed on **PyPI** as `agent-breaker`.
+- Distributed on **PyPI** as `crew-fusebox`.
 - **License: MIT** — deliberately chosen for the open-core model: a maximally permissive core
   maximizes adoption and embedding, with paid/hosted features layered on top. See
   [`CONVENTIONS.md`](./CONVENTIONS.md) §6.

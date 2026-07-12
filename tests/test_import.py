@@ -1,12 +1,12 @@
 """Task 1: the package imports and exposes a version."""
 
-import agent_breaker
+import crew_fusebox
 
 
 def test_package_imports():
-    assert agent_breaker is not None
+    assert crew_fusebox is not None
 
 
 def test_version_is_a_string():
-    assert isinstance(agent_breaker.__version__, str)
-    assert agent_breaker.__version__
+    assert isinstance(crew_fusebox.__version__, str)
+    assert crew_fusebox.__version__

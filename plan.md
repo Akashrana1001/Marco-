@@ -1,4 +1,4 @@
-# agent-breaker — Build Plan (zero → PyPI-ready Phase 1 MVP)
+# crew-fusebox — Build Plan (zero → PyPI-ready Phase 1 MVP)
 
 > Execution plan for turning the docs in `sdk/` into a working, MIT-licensed, pip-installable
 > Python SDK. Source-of-truth docs: `sdk/claude.md`, `sdk/ARCHITECTURE.md`, `sdk/PRD.md`,
@@ -6,7 +6,7 @@
 
 ## Goal
 
-Build `agent-breaker`: a single decorator (`@crew_circuit_breaker`) that wraps a CrewAI
+Build `crew-fusebox`: a single decorator (`@crew_circuit_breaker`) that wraps a CrewAI
 `kickoff()`, tracks real-time dollar spend across the whole crew, warns in dry-run mode, and
 deterministically blocks the next LLM call (raising `CircuitBreakerException`) in hard-kill mode —
 without ever crashing a healthy host application.
@@ -47,7 +47,7 @@ without ever crashing a healthy host application.
 ## Package structure
 
 ```
-src/agent_breaker/
+src/crew_fusebox/
   __init__.py      # public API: crew_circuit_breaker, CircuitBreakerException
   exceptions.py    # CircuitBreakerException (crew_run_id, spent_dollars, budget_dollars, call_count, recent_traces)
   state.py         # RunState + thread-safe registry (contextvars-bound)
@@ -64,9 +64,9 @@ LICENSE (MIT), README.md, CHANGELOG.md, pyproject.toml, plan.md
 ## Task breakdown (build in order; test after each)
 
 - **Task 1 — Scaffold + toolchain.** uv/hatchling `src/` package, MIT LICENSE, `pyproject.toml`
-  (dist `agent-breaker`, pkg `agent_breaker`, `requires-python>=3.10,<3.14`, dep `crewai>=1.14,<2`,
+  (dist `crew-fusebox`, pkg `crew_fusebox`, `requires-python>=3.10,<3.14`, dep `crewai>=1.14,<2`,
   dev extras pytest+ruff), ruff+pytest config, `py.typed`.
-  Test: trivial import test passes; `import agent_breaker` works.
+  Test: trivial import test passes; `import crew_fusebox` works.
 - **Task 2 — `CircuitBreakerException` + public API skeleton.** Structured exception + exported
   pass-through `crew_circuit_breaker`.
   Test: exception fields + `__str__`; decorator calls through and returns value.

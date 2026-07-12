@@ -1,11 +1,11 @@
-# CONTEXT — agent-breaker
+# CONTEXT — crew-fusebox
 
 > **Start here.** This is the entry-point index for every work session on this project.
 > If you are a new contributor (human or AI), read this file first, then follow the links below.
 
 ## What is this project?
 
-**agent-breaker** is a lightweight, near-zero-dependency, open-source Python SDK that acts as an
+**crew-fusebox** is a lightweight, near-zero-dependency, open-source Python SDK that acts as an
 **economic circuit-breaker** ("fuse box") for multi-agent systems. For the v1 release it focuses
 **exclusively on CrewAI**. It sits *inside* the local application runtime, tracks token consumption
 and dollar spend in real time, and — depending on configuration — either passively warns you
@@ -37,7 +37,7 @@ LLM bill. Its one-line hook: *"Stop your AI agents from bankrupting you."*
 - **Solution:** A native Python SDK — **no network proxy** — that wraps a CrewAI `kickoff()` via a
   simple decorator and enforces a dollar budget.
 - **Differentiator:** CrewAI already has per-agent `max_iter`/`max_rpm` (count/rate limits).
-  agent-breaker instead stops loops **by real-time dollar cost, aggregated across the whole crew**,
+  crew-fusebox instead stops loops **by real-time dollar cost, aggregated across the whole crew**,
   and blocks the next LLM call at the budget ceiling.
 - **Enforcement point:** CrewAI's **`before_llm_call`** hook (blocks a call *before* dispatch by
   returning `False`) — **not** `step_callback`/`task_callback`, which only report after the fact.
@@ -47,7 +47,7 @@ LLM bill. Its one-line hook: *"Stop your AI agents from bankrupting you."*
   when explicitly enabled does it block the next call and raise a `CircuitBreakerException`.
 - **Non-negotiable constraints:** Sub-millisecond pre-call evaluation, minimal dependencies, and it
   must **never crash a healthy host application**.
-- **Packaging:** PyPI as `agent-breaker`, **MIT** license (open-core). Validate against **3 real
+- **Packaging:** PyPI as `crew-fusebox`, **MIT** license (open-core). Validate against **3 real
   users' CrewAI pipelines before Phase 2**.
 
 ## How to use these docs across sessions

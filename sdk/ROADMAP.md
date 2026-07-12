@@ -1,4 +1,4 @@
-# ROADMAP — agent-breaker
+# ROADMAP — crew-fusebox
 
 > Index: [`CONTEXT.md`](./CONTEXT.md) · Source of truth: [`claude.md`](./claude.md)
 > Related: [`PRD.md`](./PRD.md) · [`ARCHITECTURE.md`](./ARCHITECTURE.md)

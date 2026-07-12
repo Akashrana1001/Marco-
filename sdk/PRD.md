@@ -1,11 +1,11 @@
-# PRD — agent-breaker
+# PRD — crew-fusebox
 
 > Index: [`CONTEXT.md`](./CONTEXT.md) · Source of truth: [`claude.md`](./claude.md)
 > Related: [`ARCHITECTURE.md`](./ARCHITECTURE.md) · [`ROADMAP.md`](./ROADMAP.md) · [`GLOSSARY.md`](./GLOSSARY.md)
 
 ## 1. Executive summary
 
-**agent-breaker** is an ultra-lightweight, open-source Python SDK that serves as an **economic
+**crew-fusebox** is an ultra-lightweight, open-source Python SDK that serves as an **economic
 circuit-breaker** for multi-agent systems. Its job is to stop autonomous AI agents from bankrupting
 developers via uncontrolled execution loops.
 
@@ -14,7 +14,7 @@ developers via uncontrolled execution loops.
 - **Positioning:** An ultra-lightweight, zero-latency **financial utility** (an economic fuse box) —
   **not** a heavy enterprise security firewall.
 - **Differentiator (vs. CrewAI native limits):** CrewAI already has per-agent `max_iter` and
-  `max_rpm`, which cap *iteration count* and *request rate*. agent-breaker does **not** duplicate
+  `max_rpm`, which cap *iteration count* and *request rate*. crew-fusebox does **not** duplicate
   those. It stops loops **by real-time dollar cost, aggregated across all agents in a crew, and
   blocks the next LLM call when a budget ceiling is breached** — the economic dimension CrewAI's
   per-agent, count/rate-based knobs do not cover.
@@ -114,7 +114,7 @@ usage, not shipped into a vacuum:
 
 ## 9. Packaging & license
 
-- Ship on **PyPI** as `agent-breaker`.
+- Ship on **PyPI** as `crew-fusebox`.
 - **License: MIT**, chosen to fit the open-core monetization model (permissive core for adoption;
   paid/hosted layer on top). See [`CONVENTIONS.md`](./CONVENTIONS.md) §6 and
   [`ROADMAP.md`](./ROADMAP.md).

@@ -17,7 +17,7 @@ import os
 
 import pytest
 
-from agent_breaker import CircuitBreakerException, crew_circuit_breaker
+from crew_fusebox import CircuitBreakerException, crew_circuit_breaker
 
 REQUIRED_HOOK_SYMBOLS = (
     "register_before_llm_call_hook",
@@ -37,7 +37,7 @@ def test_crewai_hook_api_symbols_present():
     missing = [s for s in REQUIRED_HOOK_SYMBOLS if not hasattr(hooks, s)]
     assert not missing, (
         f"CrewAI hook API changed — missing symbols: {missing}. "
-        "Update agent_breaker.crew_adapter to match."
+        "Update crew_fusebox.crew_adapter to match."
     )
 
 
@@ -57,9 +57,7 @@ def test_llm_call_hook_context_has_expected_fields():
 
 
 _LIVE = os.environ.get("AGENT_BREAKER_LIVE") == "1"
-_HAS_KEY = any(
-    os.environ.get(k) for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY")
-)
+_HAS_KEY = any(os.environ.get(k) for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"))
 
 
 @pytest.mark.skipif(

@@ -1,4 +1,4 @@
-# Project Blueprint: agent-breaker (Working Title)
+# Project Blueprint: crew-fusebox (Working Title)
 
 You are an expert AI Engineer and Python Systems Architect. Your task is to build a lightweight, high-performance, open-source Python SDK that serves as an economic circuit-breaker for multi-agent systems, focusing strictly on **CrewAI** for the version 1 release.
 
@@ -10,7 +10,7 @@ You are an expert AI Engineer and Python Systems Architect. Your task is to buil
 * **Target Audience:** Indie SaaS builders, agile development teams, and AI client agencies running agents with production budgets.
 * **Core Hook:** *"Stop your AI agents from bankrupting you."*
 * **Positioning:** An ultra-lightweight, zero-latency financial utility (an economic fuse box), not a heavy enterprise security firewall.
-* **Key Differentiator (vs. CrewAI's native limits):** CrewAI already ships per-agent `max_iter` (default ~20–25) and `max_rpm` controls that cap an agent's *iteration count* and *request rate*. **agent-breaker does not re-implement those.** Our differentiator is stopping loops **by real-time dollar cost, aggregated across every agent in a crew run, and deterministically blocking the next LLM call the moment a budget ceiling is breached.** CrewAI's native guards are per-agent and count/rate-based — they do not model spend, do not aggregate cost across the crew, and cannot enforce a dollar ceiling. If a use case is fully covered by `max_iter`/`max_rpm`, agent-breaker adds no value there; our scope is strictly the *economic* dimension those knobs ignore.
+* **Key Differentiator (vs. CrewAI's native limits):** CrewAI already ships per-agent `max_iter` (default ~20–25) and `max_rpm` controls that cap an agent's *iteration count* and *request rate*. **crew-fusebox does not re-implement those.** Our differentiator is stopping loops **by real-time dollar cost, aggregated across every agent in a crew run, and deterministically blocking the next LLM call the moment a budget ceiling is breached.** CrewAI's native guards are per-agent and count/rate-based — they do not model spend, do not aggregate cost across the crew, and cannot enforce a dollar ceiling. Most CrewAI cost guards hook into `step_callback`/`task_callback` — they can only react after a step finishes. `crew-fusebox` hooks into `before_llm_call` — it blocks the next request before it's sent, mid-step if needed. If a use case is fully covered by `max_iter`/`max_rpm`, crew-fusebox adds no value there; our scope is strictly the *economic* dimension those knobs ignore.
 
 ---
 
@@ -30,7 +30,7 @@ Because standard application loops do not crash the runtime, these behaviors con
 Our production landscape research has uncovered critical architecture constraints that you must respect:
 
 * **No Network Proxy Architecture:** We reject external API network proxies. They introduce latency, complicate SSL handling, break streaming payloads, and create an unacceptable single point of failure. The tool must be a native Python SDK/Wrapper.
-* [cite_start]**The Trust Gap (False Positives):** Real-world telemetry shows that raw trajectory deduplication triggers false positives when the same tool is legitimately called across different sub-tasks[cite: 84, 85]. [cite_start]If an agent-breaker causes false-positive crashes, developers will uninstall it instantly[cite: 85]. The tracking must be intelligently scoped.
+* [cite_start]**The Trust Gap (False Positives):** Real-world telemetry shows that raw trajectory deduplication triggers false positives when the same tool is legitimately called across different sub-tasks[cite: 84, 85]. [cite_start]If an crew-fusebox causes false-positive crashes, developers will uninstall it instantly[cite: 85]. The tracking must be intelligently scoped.
 * **De-prioritize Microsoft Agent Framework (MAF):** Legacy AutoGen is entering maintenance mode. [cite_start]A deep dive into Microsoft's new Agent Framework (MAF) ecosystem reveals that the maintainers explicitly declined to build native framework-level retry/circuit-breaking controls, stating resilience belongs at the underlying provider client layer[cite: 549, 555, 562]. [cite_start]Furthermore, core token and latency telemetry are already handled out-of-the-box via OpenTelemetry[cite: 566, 568, 569]. Therefore, there is no active community out-cry for Python-side cost gates there yet. **Focus 100% of your engineering on CrewAI execution loops.**
 
 * **Lifecycle-hook timing — VERIFIED (this is the single riskiest technical assumption; confirm again against the pinned CrewAI source before writing the state matrix):** `step_callback` and `task_callback` fire *after* a step or task has already completed and only *report* on the last action — they receive an `AgentAction`, `ToolResult`, or `AgentFinish` object. They **cannot** prevent the next outbound LLM call; by the time they run, the money is already spent. Therefore the deterministic hard-kill **must not** be built on these callbacks. Instead, inject at CrewAI's dedicated **`before_llm_call` hook** (`crewai.hooks.register_before_llm_call_hook`, the `@before_llm_call` decorator, or the crew-scoped `@before_llm_call_crew`), which runs *before every LLM call* and **blocks that call when the hook returns `False`**. The hook receives an `LLMCallHookContext` exposing `messages`, `agent`, `task`, `crew`, `llm`, and `iterations`. True cost is then reconciled from real token usage in the paired **`after_llm_call`** hook. This hook API is available in CrewAI **≥ 1.14** (see `ARCHITECTURE.md` §4.1).
@@ -39,7 +39,7 @@ Our production landscape research has uncovered critical architecture constraint
 
 ## 4. The Solution Architecture
 
-You will build a pip-installable Python package (`agent-breaker`) that implements a local, in-memory execution guard. It sits directly inside the local application runtime to track, evaluate, and forcefully terminate runaway workflows.
+You will build a pip-installable Python package (`crew-fusebox`) that implements a local, in-memory execution guard. It sits directly inside the local application runtime to track, evaluate, and forcefully terminate runaway workflows.
 
 ### User DX Design
 The integration must be effortless, wrapping the execution loop using a clean Python decorator pattern:
@@ -87,4 +87,4 @@ Dependency Management: Keep external dependencies to an absolute minimum. Rely o
 
 Error Handling: Never allow the circuit breaker itself to throw an unhandled internal exception that crashes a healthy client application. If our metric tracking fails internally, log a stderr warning and gracefully fall back to letting the agent proceed.
 
-Packaging & License: Ship on PyPI as `agent-breaker`. **License: MIT** — chosen deliberately for the open-core monetization model (maximally permissive core drives adoption/embedding; paid/hosted features layer on top). Decide this now so the license header ships from the first commit.
+Packaging & License: Ship on PyPI as `crew-fusebox`. **License: MIT** — chosen deliberately for the open-core monetization model (maximally permissive core drives adoption/embedding; paid/hosted features layer on top). Decide this now so the license header ships from the first commit.

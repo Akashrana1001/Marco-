@@ -2,7 +2,7 @@
 
 import io
 
-from agent_breaker import reporting
+from crew_fusebox import reporting
 
 
 def _kwargs(**over):
@@ -20,7 +20,7 @@ def _kwargs(**over):
 
 def test_message_content_notice():
     msg = reporting.format_warning(color=False, **_kwargs(pct=0.5))
-    assert "agent-breaker" in msg
+    assert "crew-fusebox" in msg
     assert "run-1" in msg
     assert "50%" in msg
     assert "dry-run" in msg
